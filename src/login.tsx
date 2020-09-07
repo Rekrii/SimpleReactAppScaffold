@@ -48,29 +48,30 @@ export class LoginArea extends React.Component<any, any> {
     this.setAsLoggedIn = this.setAsLoggedIn.bind(this);
     this.showRegistration = this.showRegistration.bind(this);
 
-    // Can't call setState in the constructor, so call it on a
-    // 500ms timeout, hopefully once the object has loaded
-    // no big issue I don't think if it calls it too early...
-    window.setTimeout(async () => {
-      EventManager.registerEventListener(EventManager.EVENT_LOGIN, this.setAsLoggedIn);
-    }, 500)
+    console.log("Created login area")
   }
 
   async componentDidMount() {
+    // Register the listener, even if it's already registered the EM will only keep one
+    EventManager.registerEventListener(EventManager.EVENT_LOGIN, this.setAsLoggedIn);
 
     var result = await getLoggedInStatus(); // returns a bool type
     // this.setState({isLoggedIn: result})
     if (result) {
-      EventManager.raiseEvent(EventManager.EVENT_LOGIN)
+      EventManager.raiseEvent(EventManager.EVENT_LOGIN);
     }
-    console.log("checking logged in status: " + result);
+    console.log("Checking logged in status: " + result);
   }
 
   setAsLoggedIn() {
     // This is just used as the event callback when registering
     // so we also need to hide the showReg area too
-    this.setState({ isLoggedIn: true });
-    this.setState({ showReg: false });
+    console.log("Setting as logged in");
+    this.setState({ 
+      loginInputName: getCookieOrDefault(Constants.cookieNameSessionName, ""),
+      isLoggedIn: true,
+      showReg: false 
+    });
     document.title = this.state.loginInputName + " - TaskTracker";
   }
 
@@ -153,6 +154,9 @@ export class LoginArea extends React.Component<any, any> {
       EventManager.raiseEvent(EventManager.EVENT_LOGIN)
     }
     else if (result.toLowerCase().indexOf("password not valid") > -1) {
+      this.setState({ status: result });
+    }
+    else if (result.toLowerCase().indexOf("please wait") > -1) {
       this.setState({ status: result });
     }
     else if (response.status === 502) {
@@ -239,7 +243,7 @@ class RegisterArea extends React.Component<any, any> {
     event.preventDefault();
 
     if (this.state.registerInputPassword !== this.state.registerInputPasswordConf) {
-      alert("Passwords do not match")
+      this.setState({ status: "Passwords do not match" });
       return
     }
 
@@ -263,14 +267,29 @@ class RegisterArea extends React.Component<any, any> {
     var myRequest = new Request(Constants.baseUrl + "/api/register", myInit);
     var response = await fetch(myRequest);
     var result = await (response).text();
-    // result = JSON.parse(result)
 
+    console.log(result);
+    console.log(result.indexOf("Password must be longer than"));
     // Length of uuid e.g. "c117be33-e3d2-4b15-8ce8-c0484e6da7fe".length
-    // alert(result)
     if (result.length === 36) {
       setCookie(Constants.cookieNameStringSessionUuid, result, 15)
       setCookie(Constants.cookieNameSessionName, this.state.registerInputName, 15)
-      EventManager.raiseEvent(EventManager.EVENT_LOGIN)
+
+      // Using a short timeout to allow the component to finish loading
+      // before raising the logged in event, otherwise we get a
+      // 'setState on unmounted component error' no biggie but this is a fix
+      window.setTimeout(async () => {
+        EventManager.raiseEvent(EventManager.EVENT_LOGIN)
+      }, 500);
+    }
+    else if (result.indexOf("Password must be longer than") > -1) {
+      this.setState({ status: result });
+    }
+    else if (result.indexOf("not valid") > -1) {
+      this.setState({ status: result });
+    }
+    else if (result.indexOf("already exists") > -1) {
+      this.setState({ status: result });
     }
     else if (response.status === 502) {
       this.setState({ status: "Registration server down" });
@@ -279,7 +298,7 @@ class RegisterArea extends React.Component<any, any> {
       this.setState({ status: "Registration server error" });
     }
     else {
-      this.setState({ status: "Unknown server response" });
+      this.setState({ status: "Unknown server response/error" });
     }
 
     this.setState({ isLoading: false });
@@ -305,6 +324,9 @@ class RegisterArea extends React.Component<any, any> {
             <input type="submit" value="Register" />
           </label>
         </form>
+        <div className="d-flex justify-content-center">
+          {this.state.status}
+        </div>
         <div className="d-flex justify-content-center">
           {this.state.isLoading ? <div className="m-2 load-spinner"></div> : null}
         </div>

@@ -2,7 +2,7 @@ import os
 import hashlib
 import hmac
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import constants
 from db_base import db_base
@@ -13,6 +13,9 @@ from db_base import simple_sqlsafe_str
 
 class accounts(db_base):
 
+    login_result_fail = "loginfail"
+    login_result_toosoon = "toosoon"
+
     def __init__(self, is_test=False):
         if is_test:
             super().__init__("accounts_test")
@@ -20,8 +23,9 @@ class accounts(db_base):
             super().__init__("accounts")
 
         self.active_sessions = sessions()
+        # Just using a delay between attempt, not super reliable,
+        # but fit for low-risk data, and drastically slows down brute force
         self.login_attempts = {'name': 'last_attempt'}
-        # start > datetime.now() - timedelta(seconds=10)
 
         cmd = "CREATE TABLE IF NOT EXISTS accounts "
         cmd += "(name TEXT PRIMARY KEY NOT NULL)"
@@ -75,19 +79,32 @@ class accounts(db_base):
             raise Exception("Multiple accounts with the same name?")
 
     def start_session(self, name, password):
-        # Lowercase the name/username - case must not matter
-        name = name.lower()
-        account = self.get_account(name, password)
-        if account:
-            # Create the session and return the uuid
-            # the client is responsible for keeping this
-            return self.active_sessions.add_session(name)
+        hasKey = name in self.login_attempts
+        # Check if the login attempt is too soon
+        if(hasKey and self.login_attempts[name] > datetime.now() - timedelta(seconds=constants.db_attempt_delay)):
+            # If it is, return toosoon
+            return accounts.login_result_toosoon
+        else:
+            self.login_attempts[name] = datetime.now()
+            # Lowercase the name/username - case must not matter
+            name = name.lower()
+            account = self.get_account(name, password)
+            if account:
+                # Create the session and return the uuid
+                # the client is responsible for keeping this
+                return self.active_sessions.add_session(name)
+            else:
+                # If the pw fails, return a fail
+                return accounts.login_result_fail
 
     def end_session(self, name, session_uuid):
         # Lowercase the name/username - case must not matter
         name = name.lower()
         # End the session, currenly only using the name.
         return self.active_sessions.end_session(name)
+
+    def check_session(self, name, session_uuid):
+        return self.active_sessions.check_session(name, session_uuid)
 
     def set_data(self, name, session_uuid, data, value):
         # Lowercase the name/username - case must not matter

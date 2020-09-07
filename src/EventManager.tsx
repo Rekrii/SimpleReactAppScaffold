@@ -17,7 +17,10 @@ export class EventManagerClass {
     if (this.eventRegister[eventName] === undefined) {
       this.eventRegister[eventName] = [];
     }
-    this.eventRegister[eventName].push(callback);
+    // Only want to register the callback if it hasn't been already
+    if(this.eventRegister[eventName].indexOf(callback) === -1) {
+      this.eventRegister[eventName].push(callback);
+    }
   }
 
   raiseEvent(eventName: string) {
@@ -31,6 +34,7 @@ export class EventManagerClass {
   }
 }
 
+// Creating a static 'EventManager' here that can be used globally
 var EventManager = new EventManagerClass()
 
 export default EventManager;

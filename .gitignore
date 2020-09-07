@@ -1,4 +1,7 @@
 
+# Used to skip files manually
+*.dontcommit
+
 # ===================== start db ignores =====================
 
 # ignore log files

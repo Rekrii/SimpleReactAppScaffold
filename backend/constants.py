@@ -19,6 +19,8 @@ flask_prod_subdir = ""
 '''
   database constants
 '''
+# delay in seconds between login attempts
+db_attempt_delay = 5
 # 1min timeout if we get no new commands to execute
 db_idle_timeout = 60
 # If we want to log *ever* command that gets executed
@@ -26,5 +28,6 @@ db_idle_timeout = 60
 db_use_call_log = True
 # Database will create these columns when the backend/db starts
 # These cols are added to a 'data' table, 
-# this is the table get_data/set_data uses
-db_col_names = ['colName']
+# this is the table get_data/set_data uses. 
+# NOTE: Generally use lower case names.
+db_col_names = ['colname']

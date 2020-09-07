@@ -76,10 +76,15 @@ export function pushDataToServer(col: string, data: string) {
     var fetchResult = await fetch(myRequest);
     if (fetchResult.status === 200) {
       var result = await (fetchResult).text();
-      result = JSON.parse(result);
-      if (result) {
+      result = String(JSON.parse(result));
+      if (result === "true") {
         console.log("Data saved to server.")
-      } else {
+      } 
+      else if (result) {
+        console.log(result);
+        alert(result);
+      }
+      else {
         alert("Sending data to server failed. Please refresh the page.")
       }
     } else {
@@ -91,7 +96,7 @@ export function pushDataToServer(col: string, data: string) {
 export async function pullServerData(col: string) {
   var name = getCookieOrDefault(Constants.cookieNameSessionName, "")
   var uuid = getCookieOrDefault(Constants.cookieNameStringSessionUuid, "")
-  console.log("uuid:", uuid);
+
   var myInit: RequestInit = {
     method: 'POST',
     body: JSON.stringify(

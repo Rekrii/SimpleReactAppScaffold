@@ -83,6 +83,11 @@ def set_data():
     append = str(request.form['append']).lower() == "true"
     toggle = str(request.form['toggle']).lower() == "true"
 
+    cur_session = app.accounts.check_session(name, session_uuid)
+
+    if not cur_session:
+        return jsonify("Invalid session. Please log out and log in again.")
+
     delimiter = "<>"
     new_data = data_value
     cur_data = app.accounts.get_data(
@@ -150,6 +155,8 @@ def register():
     # with the given name. a return of 'None' would be no account found
     if app.accounts.get_account(name, "") is False:
         return "Account name already exists"
+    elif len(password) < 4:
+        return "Password must be longer than 4 characters"
     elif password == password_conf:
         app.accounts.add_account(name, password)
         session = app.accounts.start_session(name, password)
@@ -171,10 +178,14 @@ def login():
 
     session = app.accounts.start_session(name, password)
     # print(app.accounts.active_sessions.check_session(name, session))
-    if session:
+    if session == accounts.accounts.login_result_fail:
+        return "Account/Password not valid"
+    elif session == accounts.accounts.login_result_toosoon:
+        return "Login attempt too soon - please wait " + str(constants.db_attempt_delay) + " seconds."
+    elif session:
         return str(session)
     else:
-        return "Account/Password not valid"
+        return "Other login error."
 
 
 @app.route(app.subDir + '/api/logout', methods=['POST'])
